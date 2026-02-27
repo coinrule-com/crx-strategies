@@ -27,23 +27,21 @@ files = [
 
 [[package]]
 name = "crx-indicators"
-version = "1.4.1"
+version = "1.0.0"
 description = "Standard indicators library for the Coinrule X execution platform"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
-files = []
-develop = true
+files = [
+    {file = "crx_indicators-1.0.0-py3-none-any.whl", hash = "sha256:d31a5d632da6a0f74d0c90c226568a0635cd5c20e7cc269cc6992f8d531dc015"},
+    {file = "crx_indicators-1.0.0.tar.gz", hash = "sha256:cbc489091a12804d8965c60dc347a789f8b9d5d67f2ee0ceffb7c2c08ab71a95"},
+]
 
 [package.dependencies]
 numpy = ">=1.20.0"
 pandas = ">=2.0.0"
 pydantic = ">=2.12.5,<3.0.0"
 pyyaml = ">=6.0.3,<7.0.0"
-
-[package.source]
-type = "directory"
-url = "../crx-indicators"
 
 [[package]]
 name = "exceptiongroup"
@@ -754,4 +752,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9"
-content-hash = "d83a1a3bf58ae861d9432b08598653de00c55415b08964d76736bbd02c22e2d4"
+content-hash = "d7e6f7f56f86b2221f7d2677bbc43dc84d9ad91011d0f57f8a1744854d5e2346"
