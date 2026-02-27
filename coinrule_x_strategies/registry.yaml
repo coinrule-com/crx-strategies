@@ -1,0 +1,8 @@
+# Coinrule X Strategy Registry
+# This file tracks all available trading strategies.
+# To keep this scalable, individual strategies are defined in their own folders.
+
+includes:
+  - "strategies/trend_rider/registry.yaml"
+  - "strategies/bounce_recovery/registry.yaml"
+  - "strategies/volatility_breakout/registry.yaml"

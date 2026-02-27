@@ -1,0 +1,107 @@
+name: Strategy Validation & CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Validate Strategy Registries
+        run: |
+          poetry run python coinrule_x_strategies/validation.py .
+
+      - name: Run Tests
+        run: poetry run pytest
+
+  release:
+    needs: validate-and-test
+    if: github.event_name == 'push' && !contains(github.event.head_commit.message, 'skip ci')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Install Dependencies
+        run: poetry install --no-interaction
+
+      - name: Check for Version Change
+        id: check_version
+        run: |
+          # Get version from pyproject.toml
+          NEW_VERSION=$(grep -m1 'version = ' pyproject.toml | cut -d '"' -f 2)
+          echo "Detected version: $NEW_VERSION"
+
+          # Check if tag exists
+          if git rev-parse "v$NEW_VERSION" >/dev/null 2>&1; then
+            echo "Tag v$NEW_VERSION already exists. Skipping release."
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "New version detected."
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Tag
+        if: steps.check_version.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag "v${{ steps.check_version.outputs.version }}"
+          git push origin "v${{ steps.check_version.outputs.version }}"
+
+      - name: Extract Changelog
+        if: steps.check_version.outputs.changed == 'true'
+        id: changelog
+        uses: mindsers/changelog-reader-action@v2
+        with:
+          version: ${{ steps.check_version.outputs.version }}
+          path: ./CHANGELOG.md
+        continue-on-error: true # Don't fail if CHANGELOG is missing section
+
+      - name: Create GitHub Release
+        if: steps.check_version.outputs.changed == 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          tag: "v${{ steps.check_version.outputs.version }}"
+          name: "v${{ steps.check_version.outputs.version }}"
+          body: ${{ steps.changelog.outputs.changes }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Publish to PyPI
+        if: steps.check_version.outputs.changed == 'true'
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          poetry publish --build

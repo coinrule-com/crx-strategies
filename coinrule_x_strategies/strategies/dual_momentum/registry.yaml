@@ -1,0 +1,66 @@
+strategy:
+  id: "dual_momentum"
+  name: "Dual Momentum"
+  description: "Multi-timeframe momentum strategy that uses higher timeframe for trend direction and lower timeframe for precise entry/exit timing. Manages its own exits based on momentum divergence and overbought/oversold conditions."
+  tags:
+    - "multi-timeframe"
+    - "momentum"
+    - "trend-following"
+    - "entry-exit"
+  entry_only: false
+  latest: "0.1.0"
+  versions:
+    "0.1.0":
+      class: "coinrule_x_strategies.strategies.dual_momentum.strategy.DualMomentum"
+      settings:
+        market_mode: "multi"
+        market_aliases: ["ltf", "htf"]
+      arguments:
+        ema_period_ltf:
+          required: false
+          type: int
+          default: 20
+          label: "LTF EMA Period"
+          description: "Lower timeframe EMA period for entry timing"
+        ema_period_htf:
+          required: false
+          type: int
+          default: 50
+          label: "HTF EMA Period"
+          description: "Higher timeframe EMA period for trend direction"
+        rsi_period:
+          required: false
+          type: int
+          default: 14
+          label: "RSI Period"
+          description: "RSI period for both timeframes"
+        adx_period:
+          required: false
+          type: int
+          default: 14
+          label: "ADX Period"
+          description: "ADX period for higher timeframe trend strength"
+        adx_threshold:
+          required: false
+          type: float
+          default: 25.0
+          label: "ADX Threshold"
+          description: "Minimum ADX value on HTF to consider trend strong enough for entries"
+        rsi_overbought:
+          required: false
+          type: float
+          default: 70.0
+          label: "RSI Overbought"
+          description: "RSI level on LTF that triggers exit for long positions"
+        rsi_oversold:
+          required: false
+          type: float
+          default: 30.0
+          label: "RSI Oversold"
+          description: "RSI level on LTF that triggers exit for short positions"
+        rsi_momentum_threshold:
+          required: false
+          type: float
+          default: 50.0
+          label: "RSI Momentum Threshold"
+          description: "RSI level that defines bullish (above) vs bearish (below) momentum"

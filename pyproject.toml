@@ -1,0 +1,52 @@
+[project]
+name = "crx-strategies"
+version = "1.0.1"
+description = "Standard strategies library for the Coinrule X execution platform"
+readme = "README.md"
+authors = [
+    { name = "Zdenek", email = "zdenek@coinrule.com" }
+]
+license = "MIT"
+keywords = ["trading", "crypto", "algo", "strategies"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+requires-python = ">=3.9"
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+pandas = ">=2.0.0"
+numpy = ">=1.20.0"
+pydantic = "^2.12.5"
+pyyaml = "^6.0.3"
+crx-indicators = {path = "../crx-indicators", develop = true}
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+packages = [{include = "coinrule_x_strategies"}]
+include = ["coinrule_x_strategies/registry.yaml", "coinrule_x_strategies/strategies/**/registry.yaml"]
+
+[tool.poetry.scripts]
+coinrule_x-validate-strategies = "coinrule_x_strategies.validation:main"
+
+[tool.poetry.urls]
+Documentation = "https://github.com/coinrule_x/crx-strategies#readme"
+Issues = "https://github.com/coinrule_x/crx-strategies/issues"
+Source = "https://github.com/coinrule_x/crx-strategies"
+
+[dependency-groups]
+dev = [
+    "pytest (<8.0.0)"
+]
+

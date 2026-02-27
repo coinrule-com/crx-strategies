@@ -1,0 +1,46 @@
+strategy:
+  id: "trend_rider"
+  name: "Trend Rider"
+  description: "A trend-following strategy designed to capitalize on strong directional markets. It enters positions only when multiple trend and momentum indicators align, aiming to stay in trades during sustained moves while avoiding choppy conditions."
+  tags:
+    - "trend-following"
+    - "momentum"
+    - "risk-management"
+  entry_only: true
+  latest: "0.1.0"
+  versions:
+    "0.1.0":
+      class: "coinrule_x_strategies.strategies.trend_rider.strategy.TrendRider"
+      settings:
+        market_mode: "single"
+      arguments:
+        ema_fast_period:
+          required: false
+          type: int
+          default: 50
+          label: "Fast EMA Period"
+          description: "Lookback for the fast moving average"
+        ema_slow_period:
+          required: false
+          type: int
+          default: 200
+          label: "Slow EMA Period"
+          description: "Lookback for the slow moving average"
+        rsi_period:
+          required: false
+          type: int
+          default: 14
+          label: "RSI Period"
+          description: "Lookback for the RSI momentum indicator"
+        adx_period:
+          required: false
+          type: int
+          default: 14
+          label: "ADX Period"
+          description: "Lookback for the ADX trend strength indicator"
+        adx_threshold:
+          required: false
+          type: float
+          default: 25.0
+          label: "ADX Threshold"
+          description: "Minimum ADX value to consider a trend 'strong'"

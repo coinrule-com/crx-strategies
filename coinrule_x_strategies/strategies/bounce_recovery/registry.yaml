@@ -1,0 +1,62 @@
+strategy:
+  id: "bounce_recovery"
+  name: "Bounce Recovery"
+  description: "Mean-reversion strategy designed to capture controlled pullbacks and oversold conditions with strict confirmation requirements."
+  tags:
+    - "mean-reversion"
+    - "pullback"
+    - "oversold"
+  entry_only: true
+  latest: "0.1.0"
+  versions:
+    "0.1.0":
+      class: "coinrule_x_strategies.strategies.bounce_recovery.strategy.BounceRecovery"
+      arguments:
+        ema_period:
+          required: false
+          type: int
+          default: 50
+          label: "EMA Period"
+          description: "Trend reference for pullback structure detection"
+        rsi_period:
+          required: false
+          type: int
+          default: 14
+          label: "RSI Period"
+          description: "Momentum oscillator for overextension and recovery detection"
+        rsi_oversold:
+          required: false
+          type: float
+          default: 30.0
+          label: "RSI Oversold Threshold"
+          description: "RSI level defining oversold condition"
+        rsi_recovery:
+          required: false
+          type: float
+          default: 35.0
+          label: "RSI Recovery Threshold"
+          description: "RSI must exceed this level to confirm bounce"
+        atr_period:
+          required: false
+          type: int
+          default: 14
+          label: "ATR Period"
+          description: "Volatility measure for overextension threshold"
+        atr_multiplier:
+          required: false
+          type: float
+          default: 1.5
+          label: "ATR Multiplier"
+          description: "Minimum distance from EMA (in ATR units) to qualify as overextended"
+        adx_period:
+          required: false
+          type: int
+          default: 14
+          label: "ADX Period"
+          description: "Trend strength indicator"
+        adx_max:
+          required: false
+          type: float
+          default: 30.0
+          label: "ADX Maximum"
+          description: "Maximum ADX value to allow mean-reversion trades (filter out strong trends)"

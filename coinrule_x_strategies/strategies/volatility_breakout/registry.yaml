@@ -1,0 +1,61 @@
+strategy:
+  id: "volatility_breakout"
+  name: "Volatility Breakout"
+  description: "Captures transitions from low to high volatility with Donchian channel breakouts."
+  tags: ["breakout", "volatility", "trend-following"]
+  entry_only: true
+  latest: "0.1.0"
+  versions:
+    "0.1.0":
+      class: "coinrule_x_strategies.strategies.volatility_breakout.strategy.VolatilityBreakout"
+      settings:
+        market_mode: "single"
+      arguments:
+        donchian_period:
+          required: false
+          type: int
+          default: 20
+          label: "Donchian Period"
+          description: "Lookback for High/Low breakout channel"
+        bb_period:
+          required: false
+          type: int
+          default: 20
+          label: "BB Period"
+          description: "Bollinger Bands period for compression"
+        bb_std:
+          required: false
+          type: float
+          default: 2.0
+          label: "BB StdDev"
+          description: "Bollinger Bands standard deviation"
+        ema_period:
+          required: false
+          type: int
+          default: 50
+          label: "EMA Trend"
+          description: "EMA period for trend filter"
+        adx_period:
+          required: false
+          type: int
+          default: 14
+          label: "ADX Period"
+          description: "ADX period for trend strength"
+        adx_threshold:
+          required: false
+          type: float
+          default: 20.0
+          label: "ADX Threshold"
+          description: "Minimum ADX value to trade"
+        compression_lookback:
+          required: false
+          type: int
+          default: 50
+          label: "Compression Lookback"
+          description: "Baseline period to determine if volatility is low"
+        compression_factor:
+          required: false
+          type: float
+          default: 0.8
+          label: "Compression Factor"
+          description: "Bandwidth must be < Factor * Average Bandwidth"
