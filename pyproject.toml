@@ -27,7 +27,7 @@ pandas = ">=2.0.0"
 numpy = ">=1.20.0"
 pydantic = "^2.12.5"
 pyyaml = "^6.0.3"
-crx-indicators = {path = "../crx-indicators", develop = true}
+crx-indicators = "^1.0.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
