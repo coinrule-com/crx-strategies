@@ -13,6 +13,24 @@ This guide explains how to generate new trading strategies using the Coinrule X 
 - **Coin-agnostic**: Strategies should be applicable to any trading pair and any type of market (such as crypto spot, perpetuals, stocks, or commodities).
 - **Timeframe-parameterized**: Strategy timeframes are configurable at runtime. You can also use multiple timeframes within a single strategy by requesting multiple instances of the same indicator type.
 
+### Position Context
+
+The `evaluate()` method receives an optional `position` parameter — the current position state persisted by the execution engine. **Use this instead of instance variables** to track whether a position is open.
+
+```python
+from coinrule_x_strategies.core import PositionContext
+
+# position is None when no open position exists
+# When a position exists:
+#   position.side        → "LONG" or "SHORT"
+#   position.entry_price → average entry price
+#   position.quantity    → total position size
+#   position.legs        → number of legs (1 = single entry, >1 = DCA)
+#   position.pnl_pct     → unrealized P&L % at current price (or None)
+```
+
+**Why not instance variables?** Strategy objects live in the runner's memory. If the runner restarts, all instance state (like `self._entered = True`) is lost, but the actual position still exists on the exchange. The `position` parameter comes from persistent storage and survives restarts.
+
 ### Signal Types
 
 Strategies return signals using the `SignalSide` enum:
@@ -74,17 +92,19 @@ Strategies are organized into individual folders under `coinrule_x_strategies/st
 Each strategy requires a `registry.yaml` file with the following structure:
 
 ```yaml
-name: my_strategy           # Unique strategy identifier
-version: 1.0.0              # Semantic version
-entry_only: true            # true = entry signals only (OPEN_LONG/OPEN_SHORT/WAIT)
-                            # false = entry & exit signals (all SignalSide values)
-category: trend             # Strategy category: trend, momentum, mean_reversion, breakout, volatility
+name: my_strategy # Unique strategy identifier
+version: 1.0.0 # Semantic version
+entry_only:
+  true # true = entry signals only (OPEN_LONG/OPEN_SHORT/WAIT)
+  # false = entry & exit signals (all SignalSide values)
+category: trend # Strategy category: trend, momentum, mean_reversion, breakout, volatility
 settings:
-  market_mode: "single"     # "single" (default) or "multi" for multi-timeframe
-  market_aliases: []        # Required if market_mode is "multi", e.g., ["ltf", "htf"]
+  market_mode: "single" # "single" (default) or "multi" for multi-timeframe
+  market_aliases: [] # Required if market_mode is "multi", e.g., ["ltf", "htf"]
 ```
 
 **IMPORTANT**: The `entry_only` field is mandatory and determines:
+
 - Which `SignalSide` values are valid returns from `evaluate()`
 - Whether risk management is mandatory (entry-only) or optional (entry & exit)
 
@@ -93,8 +113,8 @@ settings:
 Every strategy must include these core imports:
 
 ```python
-from typing import List, Dict, Any
-from coinrule_x_strategies.core import Strategy, Signal, SignalSide
+from typing import List, Dict, Any, Optional
+from coinrule_x_strategies.core import Strategy, Signal, SignalSide, PositionContext
 from coinrule_x_indicators.core import Indicator
 ```
 
@@ -119,15 +139,15 @@ A strategy must:
 
 - Inherit from the `Strategy` base class
 - Implement `indicators()` method to define required indicators
-- Implement `evaluate()` method to return a `Signal` based on indicator values
-- Be stateless (no coin/token references, no specific candle timeframes)
+- Implement `evaluate()` method to return a `Signal` based on indicator values and position context
+- Be stateless (no coin/token references, no specific candle timeframes, no instance variables for tracking position state)
 - Handle insufficient data gracefully (return `WAIT` signal)
 
 **Example Strategy Template:**
 
 ```python
-from typing import List, Dict, Any
-from coinrule_x_strategies.core import Strategy, Signal, SignalSide
+from typing import List, Dict, Any, Optional
+from coinrule_x_strategies.core import Strategy, Signal, SignalSide, PositionContext
 from coinrule_x_indicators.core import Indicator
 from coinrule_x_indicators import SMA, RSI, Candle, VolumeSMA
 
@@ -159,7 +179,7 @@ class MyStrategy(Strategy):
             "volume_sma": VolumeSMA(period=self.config['volume_period']),
         }
 
-    def evaluate(self, indicators: Dict[str, List[Any]]) -> Signal:
+    def evaluate(self, indicators: Dict[str, List[Any]], position: Optional[PositionContext] = None) -> Signal:
         """Evaluate indicators and return a trading signal."""
         # Always check for sufficient data first
         if len(indicators["sma_slow"]) < self.config['sma_slow_period']:
@@ -282,6 +302,7 @@ def evaluate(self, indicators: Dict[str, List[Any]]) -> Signal:
 ```
 
 **Single-value indicators** (SMA, EMA, RSI, ATR, Price, Candle fields) return scalar values:
+
 ```python
 rsi = indicators["rsi"][-1]           # float: 45.5
 sma = indicators["sma_200"][-1]       # float: 1850.25
@@ -289,6 +310,7 @@ close = indicators["close"][-1]       # float: 1875.00
 ```
 
 **Multi-value indicators** (BollingerBands, DonchianChannels, ADX) return dictionaries:
+
 ```python
 bb = indicators["bb"][-1]
 # bb = {"upper": 1900.0, "middle": 1850.0, "lower": 1800.0, "bandwidth": 0.054}
@@ -336,12 +358,14 @@ Combine with boolean operators:
 ### Code Quality Requirements
 
 1. **Type Hinting**: All methods must be fully type-hinted
+
    ```python
    def indicators(self) -> Dict[str, Indicator]:  # ✅
-   def evaluate(self, indicators: Dict[str, List[Any]]) -> Signal:  # ✅
+   def evaluate(self, indicators: Dict[str, List[Any]], position: Optional[PositionContext] = None) -> Signal:  # ✅
    ```
 
 2. **Data Validation**: Always check for sufficient data before accessing indicator values
+
    ```python
    if len(indicators["sma"]) < required_periods:
        return Signal(side=SignalSide.WAIT, reason="Insufficient data")
@@ -361,7 +385,7 @@ Combine with boolean operators:
 
 ### What Strategies Must NOT Do
 
-- **No position management**: Do not track open positions or manage state
+- **No instance variable state**: Do not use `self._entered`, `self._state`, etc. to track position state — use the `position` parameter instead (it survives runner restarts)
 - **No risk management logic**: Do not implement stop-loss, take-profit, or trailing stops (handled by execution layer)
 - **No order execution**: Do not place orders or interact with exchanges
 - **No external API calls**: Do not fetch external data; use only provided indicators
@@ -371,6 +395,29 @@ Combine with boolean operators:
 ---
 
 ## Common Pitfalls to Avoid
+
+❌ **Don't use instance variables to track position state:**
+
+```python
+# BAD - Instance state is lost on runner restart
+def __init__(self):
+    self._entered = False  # ❌ Lost if runner restarts
+
+def evaluate(self, indicators, position=None):
+    if not self._entered:  # ❌ Will re-buy after restart
+        self._entered = True
+        return Signal(side=SignalSide.OPEN_LONG)
+```
+
+```python
+# GOOD - Use the position parameter (persisted)
+def evaluate(self, indicators, position=None):
+    if position is None:
+        return Signal(side=SignalSide.OPEN_LONG, reason="No position — enter")
+    if position.side == "LONG":
+        return Signal(side=SignalSide.CLOSE_LONG, reason="Already in — exit")
+    return Signal(side=SignalSide.WAIT)
+```
 
 ❌ **Don't reference specific assets:**
 
@@ -447,8 +494,8 @@ def evaluate(self, indicators: Dict[str, List[Any]]) -> Signal:
 ## Example: Complete Strategy
 
 ```python
-from typing import List, Dict, Any
-from coinrule_x_strategies.core import Strategy, Signal, SignalSide
+from typing import List, Dict, Any, Optional
+from coinrule_x_strategies.core import Strategy, Signal, SignalSide, PositionContext
 from coinrule_x_indicators.core import Indicator
 from coinrule_x_indicators import EMA, ADX, BollingerBands, DonchianChannels, Candle
 
@@ -498,7 +545,7 @@ class VolatilityBreakoutStrategy(Strategy):
             "adx": ADX(period=self.config['adx_period']),
         }
 
-    def evaluate(self, indicators: Dict[str, List[Any]]) -> Signal:
+    def evaluate(self, indicators: Dict[str, List[Any]], position: Optional[PositionContext] = None) -> Signal:
         # Minimum data check
         min_periods = max(
             self.config['bb_period'],
@@ -570,8 +617,8 @@ class VolatilityBreakoutStrategy(Strategy):
 For strategies with custom exit logic (`entry_only: false`):
 
 ```python
-from typing import List, Dict, Any
-from coinrule_x_strategies.core import Strategy, Signal, SignalSide
+from typing import List, Dict, Any, Optional
+from coinrule_x_strategies.core import Strategy, Signal, SignalSide, PositionContext
 from coinrule_x_indicators.core import Indicator
 from coinrule_x_indicators import RSI, SMA, Candle
 
@@ -606,7 +653,7 @@ class MeanReversionStrategy(Strategy):
             "sma": SMA(period=self.config['sma_period']),
         }
 
-    def evaluate(self, indicators: Dict[str, List[Any]]) -> Signal:
+    def evaluate(self, indicators: Dict[str, List[Any]], position: Optional[PositionContext] = None) -> Signal:
         if len(indicators["sma"]) < self.config['sma_period']:
             return Signal(side=SignalSide.WAIT, reason="Insufficient data")
 
@@ -614,24 +661,24 @@ class MeanReversionStrategy(Strategy):
         rsi = indicators["rsi"][-1]
         sma = indicators["sma"][-1]
 
-        # Exit conditions (checked first for safety)
-        # Note: Exit signals are valid because entry_only: false
-        if rsi > self.config['overbought_threshold']:
-            return Signal(
-                side=SignalSide.CLOSE_LONG,
-                reason=f"RSI overbought ({rsi:.2f})",
-                metadata={"rsi": rsi}
-            )
+        # Exit conditions — only check when we have an open position
+        if position is not None and position.side == "LONG":
+            if rsi > self.config['overbought_threshold']:
+                return Signal(
+                    side=SignalSide.CLOSE_LONG,
+                    reason=f"RSI overbought ({rsi:.2f})",
+                    metadata={"rsi": rsi}
+                )
 
-        if rsi > self.config['exit_threshold']:
-            return Signal(
-                side=SignalSide.CLOSE_LONG,
-                reason=f"RSI normalized ({rsi:.2f})",
-                metadata={"rsi": rsi}
-            )
+            if rsi > self.config['exit_threshold']:
+                return Signal(
+                    side=SignalSide.CLOSE_LONG,
+                    reason=f"RSI normalized ({rsi:.2f})",
+                    metadata={"rsi": rsi}
+                )
 
-        # Entry conditions
-        if rsi < self.config['oversold_threshold'] and close > sma:
+        # Entry conditions — only when no position is open
+        if position is None and rsi < self.config['oversold_threshold'] and close > sma:
             return Signal(
                 side=SignalSide.OPEN_LONG,
                 reason=f"Oversold bounce opportunity (RSI: {rsi:.2f})",
@@ -646,7 +693,7 @@ class MeanReversionStrategy(Strategy):
 ```yaml
 name: mean_reversion
 version: 1.0.0
-entry_only: false  # Allows CLOSE_LONG and CLOSE_SHORT signals
+entry_only: false # Allows CLOSE_LONG and CLOSE_SHORT signals
 category: mean_reversion
 ```
 
@@ -721,14 +768,14 @@ entry_only: true
 category: momentum
 settings:
   market_mode: "multi"
-  market_aliases: ["primary", "secondary"]  # e.g., BTC and ETH
+  market_aliases: ["primary", "secondary"] # e.g., BTC and ETH
 ```
 
 **Strategy Example:**
 
 ```python
 from typing import List, Dict, Any, Tuple
-from coinrule_x_strategies.core import Strategy, Signal, SignalSide
+from coinrule_x_strategies.core import Strategy, Signal, SignalSide, PositionContext
 from coinrule_x_indicators.core import Indicator
 from coinrule_x_indicators import RSI, EMA, Candle
 
@@ -759,7 +806,7 @@ class CrossMarketMomentumStrategy(Strategy):
             "close_secondary": (Candle(field="close"), "secondary"),
         }
 
-    def evaluate(self, indicators: Dict[str, List[Any]]) -> Signal:
+    def evaluate(self, indicators: Dict[str, List[Any]], position: Optional[PositionContext] = None) -> Signal:
         if len(indicators["ema_primary"]) < self.config['ema_period']:
             return Signal(side=SignalSide.WAIT, reason="Insufficient data")
 
